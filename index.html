@@ -594,7 +594,28 @@ body {
         <input
             id="imageInput"
             type="file"
-            accept="image
+            accept="image/*"
+            onchange="sendImage(event)"
+        >
+
+        <input
+            id="messageInput"
+            type="text"
+            placeholder="Nhập tin nhắn..."
+            autocomplete="off"
+        >
+
+        <button
+            class="send"
+            onclick="sendMessage()">
+            Gửi
+        </button>
+
+    </div>
+
+</div>
+
+<script>
 
 const WEB_PASSWORD = "132";
 
