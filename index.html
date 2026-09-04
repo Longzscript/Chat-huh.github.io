@@ -23,9 +23,7 @@ body {
     background: #f0f2f5;
 }
 
-/* =========================
-   LOGIN
-========================= */
+
 
 #lockScreen {
     position: fixed;
@@ -112,9 +110,7 @@ body {
     color: #e53935;
 }
 
-/* =========================
-   APP
-========================= */
+
 
 #app {
     display: none;
@@ -127,9 +123,7 @@ body {
     animation: appIn .3s ease;
 }
 
-/* =========================
-   HEADER
-========================= */
+
 
 .header {
     height: 64px;
@@ -178,9 +172,7 @@ body {
     margin-right: 5px;
 }
 
-/* =========================
-   MESSAGES
-========================= */
+
 
 .messages {
     flex: 1;
@@ -233,7 +225,7 @@ body {
     border-radius: 17px 17px 5px 17px;
 }
 
-/* LINK */
+
 
 .bubble a {
     color: #0068ff;
@@ -247,7 +239,7 @@ body {
     color: #dcecff;
 }
 
-/* IMAGE */
+
 
 .message-image {
     display: block;
@@ -276,9 +268,14 @@ body {
     opacity: .55;
 }
 
-/* =========================
-   INPUT
-========================= */
+.sender {
+    margin-bottom: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    opacity: .65;
+}
+
+
 
 .input-area {
     width: 100%;
@@ -298,7 +295,7 @@ body {
         max(10px, env(safe-area-inset-bottom));
 }
 
-/* IMAGE BUTTON */
+
 
 .image-button {
     width: 44px;
@@ -339,7 +336,7 @@ body {
     display: none;
 }
 
-/* TEXT */
+
 
 #messageInput {
     flex: 1;
@@ -361,7 +358,7 @@ body {
     font-size: 15px;
 }
 
-/* SEND */
+
 
 .send {
     height: 44px;
@@ -393,9 +390,7 @@ body {
     transform: scale(.94);
 }
 
-/* =========================
-   EMPTY
-========================= */
+
 
 .empty {
     height: 100%;
@@ -410,9 +405,7 @@ body {
     font-size: 14px;
 }
 
-/* =========================
-   ANIMATION
-========================= */
+
 
 @keyframes loginIn {
 
@@ -454,9 +447,7 @@ body {
 
 }
 
-/* =========================
-   MOBILE
-========================= */
+
 
 @media(max-width:700px) {
 
@@ -504,9 +495,7 @@ body {
 
 }
 
-/* =========================
-   SMALL MOBILE
-========================= */
+
 
 @media(max-width:380px) {
 
@@ -532,9 +521,7 @@ body {
 
 <body>
 
-<!-- =========================
-     PASSWORD
-========================= -->
+
 
 <div id="lockScreen">
 
@@ -551,6 +538,14 @@ body {
             autocomplete="off"
         >
 
+        <input
+            id="displayName"
+            type="text"
+            placeholder="Tên của bạn"
+            autocomplete="nickname"
+            style="display:none"
+        >
+
         <button onclick="login()">
             Đăng nhập
         </button>
@@ -562,9 +557,7 @@ body {
 </div>
 
 
-<!-- =========================
-     CHAT
-========================= -->
+
 
 <div id="app">
 
@@ -589,7 +582,7 @@ body {
 
     <div class="input-area">
 
-        <!-- IMAGE -->
+        
 
         <button
             class="image-button"
@@ -601,55 +594,20 @@ body {
         <input
             id="imageInput"
             type="file"
-            accept="image/*"
-            onchange="sendImage(event)"
-        >
-
-
-        <!-- MESSAGE -->
-
-        <input
-            id="messageInput"
-            type="text"
-            placeholder="Nhập tin nhắn..."
-            autocomplete="off"
-        >
-
-
-        <!-- SEND -->
-
-        <button
-            class="send"
-            onclick="sendMessage()">
-            Gửi
-        </button>
-
-    </div>
-
-</div>
-
-
-<script>
-
-/* =========================
-   CONFIG
-========================= */
+            accept="image
 
 const WEB_PASSWORD = "132";
 
-// Message Vault API configuration
 const API_BASE = "https://3000-ifu1rod8szpdhabai9xmp-420865d3.sg2.manus.computer";
 const API_KEY = "mv_live_k2PEXu4XW2SOTo09BkadBWLydnBBdtvs";
-// Optional: set a slug to pin this chat to one room. Empty = use the first room.
 const ROOM_SLUG = "";
 let activeRoomSlug = ROOM_SLUG;
 const API_ENABLED = true;
 const STORAGE_KEY = "CHAT_MESSAGES_SINGLE_CACHE";
+const NAME_KEY = "CHAT_DISPLAY_NAME";
 
 
-/* =========================
-   DATA
-========================= */
+
 
 let messages =
     JSON.parse(
@@ -688,7 +646,8 @@ function messageFromApi(message) {
         type: imageUrl ? "image" : "text",
         text: message.content || "",
         src: imageUrl,
-        me: message.sender === "check.html",
+        sender: message.sender || "Ẩn danh",
+        me: message.sender === localStorage.getItem(NAME_KEY),
         time: new Date(message.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
     };
 }
@@ -718,48 +677,39 @@ async function loadFromApi() {
 }
 
 
-/* =========================
-   LOGIN
-========================= */
+
 
 function login() {
 
-    const password =
-        document.getElementById("password").value;
+    const password = document.getElementById("password").value;
+    const nameInput = document.getElementById("displayName");
+    const name = nameInput.value.trim();
 
-    if (password === WEB_PASSWORD) {
-
-        document.getElementById("lockScreen")
-            .style.display = "none";
-
-        document.getElementById("app")
-            .style.display = "flex";
-
-        renderMessages();
-
-        setTimeout(() => {
-
-            document
-                .getElementById("messageInput")
-                .focus();
-
-        }, 100);
-
-    } else {
-
-        document.getElementById("error")
-            .textContent =
-            "Mật khẩu không đúng";
-
-        document.getElementById("password")
-            .value = "";
-
+    if (password !== WEB_PASSWORD) {
+        document.getElementById("error").textContent = "Mật khẩu không đúng";
+        document.getElementById("password").value = "";
+        return;
     }
+
+    if (!name) {
+        nameInput.style.display = "block";
+        nameInput.focus();
+        document.querySelector(".login-box button").textContent = "Vào chat";
+        document.getElementById("error").textContent = "Hãy nhập tên của bạn";
+        return;
+    }
+
+    localStorage.setItem(NAME_KEY, name);
+    document.getElementById("lockScreen").style.display = "none";
+    document.getElementById("app").style.display = "flex";
+    renderMessages();
+    loadFromApi();
+    setTimeout(() => document.getElementById("messageInput").focus(), 100);
 
 }
 
 
-/* ENTER LOGIN */
+
 
 document
     .getElementById("password")
@@ -775,9 +725,13 @@ document
     );
 
 
-/* =========================
-   SAVE
-========================= */
+document
+    .getElementById("displayName")
+    .addEventListener("keydown", event => {
+        if (event.key === "Enter") login();
+    });
+
+
 
 function save() {
 
@@ -789,9 +743,7 @@ function save() {
 }
 
 
-/* =========================
-   HTML ESCAPE
-========================= */
+
 
 function escapeHTML(text) {
 
@@ -805,9 +757,7 @@ function escapeHTML(text) {
 }
 
 
-/* =========================
-   LINK FORMAT
-========================= */
+
 
 function formatText(text) {
 
@@ -838,9 +788,7 @@ function formatText(text) {
 }
 
 
-/* =========================
-   TIME
-========================= */
+
 
 function getTime() {
 
@@ -856,9 +804,7 @@ function getTime() {
 }
 
 
-/* =========================
-   SEND TEXT
-========================= */
+
 
 async function sendMessage() {
 
@@ -884,7 +830,7 @@ async function sendMessage() {
             setStatus("Đang gửi...");
             const data = await apiRequest("/api/v1/rooms/" + encodeURIComponent(activeRoomSlug) + "/messages", {
                 method: "POST",
-                body: JSON.stringify({ content: text, sender: "check.html" })
+                body: JSON.stringify({ content: text, sender: localStorage.getItem(NAME_KEY) || "website" })
             });
             messages.push(messageFromApi(data.message));
             save();
@@ -897,16 +843,14 @@ async function sendMessage() {
         }
     }
 
-    messages.push({ type: "text", text, me: true, time: getTime() });
+    messages.push({ type: "text", text, sender: localStorage.getItem(NAME_KEY) || "Bạn", me: true, time: getTime() });
     save();
     renderMessages();
 
 }
 
 
-/* =========================
-   SEND IMAGE
-========================= */
+
 
 function sendImage(event) {
 
@@ -923,10 +867,7 @@ function sendImage(event) {
 
     }
 
-    /*
-       Giới hạn để tránh localStorage
-       bị đầy quá nhanh.
-    */
+    
 
     if (file.size > 5 * 1024 * 1024) {
 
@@ -957,7 +898,7 @@ function sendImage(event) {
                     body: JSON.stringify({
                         imageData: e.target.result,
                         imageName: file.name,
-                        sender: "check.html"
+                        sender: localStorage.getItem(NAME_KEY) || "website"
                     })
                 });
                 messages.push(messageFromApi(data.message));
@@ -971,7 +912,7 @@ function sendImage(event) {
             }
         }
 
-        messages.push({ type: "image", src: e.target.result, me: true, time: getTime() });
+        messages.push({ type: "image", src: e.target.result, sender: localStorage.getItem(NAME_KEY) || "Bạn", me: true, time: getTime() });
         save();
         renderMessages();
 
@@ -984,9 +925,7 @@ function sendImage(event) {
 }
 
 
-/* =========================
-   RENDER
-========================= */
+
 
 function renderMessages() {
 
@@ -1022,7 +961,7 @@ function renderMessages() {
         let content = "";
 
 
-        /* TEXT */
+        
 
         if (message.type === "text") {
 
@@ -1032,7 +971,7 @@ function renderMessages() {
         }
 
 
-        /* IMAGE */
+        
 
         if (message.type === "image") {
 
@@ -1051,6 +990,8 @@ function renderMessages() {
         wrapper.innerHTML = `
 
             <div class="bubble">
+
+                ${message.sender ? `<div class="sender">${escapeHTML(message.sender)}</div>` : ""}
 
                 ${content}
 
@@ -1077,9 +1018,7 @@ function renderMessages() {
 }
 
 
-/* =========================
-   OPEN IMAGE
-========================= */
+
 
 function openImage(src) {
 
@@ -1116,9 +1055,7 @@ function openImage(src) {
 }
 
 
-/* =========================
-   ENTER SEND
-========================= */
+
 
 document
     .getElementById("messageInput")
@@ -1141,12 +1078,9 @@ document
     );
 
 
-/* =========================
-   START
-========================= */
+
 
 renderMessages();
-loadFromApi();
 
 </script>
 
