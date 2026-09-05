@@ -37,6 +37,35 @@ body {
     background: #eef3f8;
 }
 
+#loadingScreen {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: #eef3f8;
+}
+
+.loading-box {
+    width: min(380px, 90%);
+    padding: 35px;
+    background: white;
+    border-radius: 18px;
+    box-shadow: 0 15px 50px rgba(0,0,0,.12);
+    text-align: center;
+}
+
+.loading-box h1 {
+    color: #0068ff;
+    font-size: 30px;
+    margin-bottom: 8px;
+}
+
+.loading-box p {
+    color: #777;
+}
+
 .login-box {
     width: min(380px, 90%);
     padding: 35px;
@@ -170,6 +199,17 @@ body {
     background: #31c45b;
 
     margin-right: 5px;
+}
+
+.clear-chat {
+    margin-left: auto;
+    padding: 8px 12px;
+    border: 1px solid #ffd0cc;
+    border-radius: 10px;
+    background: #fff5f3;
+    color: #c14439;
+    font-size: 12px;
+    cursor: pointer;
 }
 
 
@@ -556,6 +596,13 @@ body {
 
 </div>
 
+<div id="loadingScreen">
+    <div class="loading-box">
+        <h1>CHAT</h1>
+        <p id="loadingText">Đang kết nối...</p>
+    </div>
+</div>
+
 
 
 
@@ -570,6 +617,8 @@ body {
         <div class="status">
             Đang hoạt động
         </div>
+
+        <button class="clear-chat" onclick="clearChat()">Xóa chat</button>
 
     </header>
 
@@ -624,16 +673,13 @@ const API_KEY = "mv_live_k2PEXu4XW2SOTo09BkadBWLydnBBdtvs";
 const ROOM_SLUG = "";
 let activeRoomSlug = ROOM_SLUG;
 const API_ENABLED = true;
-const STORAGE_KEY = "CHAT_MESSAGES_SINGLE_CACHE";
 const NAME_KEY = "CHAT_DISPLAY_NAME";
+let retryTimer = null;
 
 
 
 
-let messages =
-    JSON.parse(
-        localStorage.getItem(STORAGE_KEY)
-    ) || [];
+let messages = [];
 
 function setStatus(text, isError = false) {
     const status = document.querySelector(".status");
@@ -674,26 +720,32 @@ function messageFromApi(message) {
 }
 
 async function loadFromApi() {
+    if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+    }
+    document.getElementById("lockScreen").style.display = "none";
+    document.getElementById("app").style.display = "none";
+    document.getElementById("loadingScreen").style.display = "flex";
+    document.getElementById("loadingText").textContent = "Đang kết nối...";
     try {
-        setStatus("Đang đồng bộ...");
         if (!activeRoomSlug) {
             const roomsData = await apiRequest("/api/v1/rooms", { method: "GET" });
             activeRoomSlug = roomsData.rooms?.[0]?.slug || "";
         }
-        if (!activeRoomSlug) {
-            setStatus("Chưa có phòng", true);
-            renderMessages();
-            return;
-        }
+        if (!activeRoomSlug) throw new Error("Chưa có phòng");
         const data = await apiRequest("/api/v1/rooms/" + encodeURIComponent(activeRoomSlug) + "/messages?limit=100", { method: "GET" });
         messages = (data.messages || []).map(messageFromApi);
-        save();
         renderMessages();
-        setStatus("Đã đồng bộ API");
+        document.getElementById("loadingScreen").style.display = "none";
+        document.getElementById("app").style.display = "flex";
+        setStatus("Đang hoạt động");
     } catch (error) {
-        setStatus("API lỗi - đang dùng cache", true);
         console.error("Message Vault API:", error);
+        messages = [];
         renderMessages();
+        document.getElementById("loadingText").textContent = "Đang chờ kết nối...";
+        retryTimer = setTimeout(() => loadFromApi(), 3000);
     }
 }
 
@@ -721,11 +773,8 @@ function login() {
     }
 
     localStorage.setItem(NAME_KEY, name);
-    document.getElementById("lockScreen").style.display = "none";
-    document.getElementById("app").style.display = "flex";
-    renderMessages();
     loadFromApi();
-    setTimeout(() => document.getElementById("messageInput").focus(), 100);
+    setTimeout(() => document.getElementById("messageInput")?.focus(), 100);
 
 }
 
@@ -755,12 +804,6 @@ document
 
 
 function save() {
-
-    localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(messages)
-    );
-
 }
 
 
@@ -844,8 +887,6 @@ async function sendMessage() {
 
     if (!text) return;
 
-    input.value = "";
-
     if (API_ENABLED) {
         try {
             setStatus("Đang gửi...");
@@ -853,25 +894,42 @@ async function sendMessage() {
                 method: "POST",
                 body: JSON.stringify({ content: text, sender: localStorage.getItem(NAME_KEY) || "website" })
             });
+            input.value = "";
             messages.push(messageFromApi(data.message));
             save();
             renderMessages();
-            setStatus("Đã đồng bộ API");
+            setStatus("Đang hoạt động");
             return;
         } catch (error) {
             console.error("Message Vault API:", error);
-            setStatus("API lỗi - đã lưu tạm", true);
+            input.value = text;
+            await loadFromApi();
+            return;
         }
     }
-
-    messages.push({ type: "text", text, sender: localStorage.getItem(NAME_KEY) || "Bạn", me: true, time: getTime() });
-    save();
-    renderMessages();
 
 }
 
 
 
+
+async function clearChat() {
+    if (!activeRoomSlug) await loadFromApi();
+    if (!activeRoomSlug) return;
+    if (!window.confirm("Xóa toàn bộ tin nhắn trong phòng này? Không thể khôi phục.")) return;
+
+    try {
+        setStatus("Đang xóa...");
+        await apiRequest("/api/v1/rooms/" + encodeURIComponent(activeRoomSlug) + "/messages", { method: "DELETE" });
+        messages = [];
+        save();
+        renderMessages();
+        setStatus("Đã xóa chat");
+    } catch (error) {
+        setStatus("Không thể xóa chat", true);
+        console.error("Message Vault API:", error);
+    }
+}
 
 function sendImage(event) {
 
@@ -925,17 +983,14 @@ function sendImage(event) {
                 messages.push(messageFromApi(data.message));
                 save();
                 renderMessages();
-                setStatus("Đã đồng bộ API");
+                setStatus("Đang hoạt động");
                 return;
             } catch (error) {
                 console.error("Message Vault API:", error);
-                setStatus("API lỗi - đã lưu tạm", true);
+                await loadFromApi();
+                return;
             }
         }
-
-        messages.push({ type: "image", src: e.target.result, sender: localStorage.getItem(NAME_KEY) || "Bạn", me: true, time: getTime() });
-        save();
-        renderMessages();
 
     };
 
